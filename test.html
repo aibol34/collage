@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Футуристический мегаполис</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tween.js@18.5.0/dist/tween.umd.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Exo 2', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0e2a, #1a1f4b, #2a2f6c);
+            color: #e0f0ff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            transform-style: preserve-3d;
+        }
+
+        #city-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(10, 15, 40, 0.9);
+            padding: 25px 45px;
+            border-radius: 25px;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            text-align: center;
+            min-width: 500px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 15px 35px rgba(0, 15, 40, 0.6);
+            border-bottom: 3px solid #4facfe;
+        }
+
+        h1 {
+            font-size: 3.2rem;
+            background: linear-gradient(to right, #6a82fb, #fc5c7d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 1.4rem;
+            color: #a0d0ff;
+            margin-bottom: 25px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        #click-counter {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #6a82fb;
+            font-weight: 700;
+        }
+
+        #progress-container {
+            width: 450px;
+            height: 16px;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 0 auto 25px;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4);
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #6a82fb, #fc5c7d);
+            border-radius: 12px;
+            transition: width 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+            box-shadow: 0 0 25px rgba(106, 130, 251, 0.6);
+        }
+
+        #hint {
+            font-size: 1.3rem;
+            font-weight: 300;
+            color: #88c0f0;
+            margin-top: 15px;
+            animation: pulse 3s infinite;
+        }
+
+        #special-item {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0) rotateX(90deg);
+            background: linear-gradient(145deg, #1a1f4b, #252a5e);
+            border-radius: 30px;
+            padding: 50px;
+            box-shadow: 0 30px 60px rgba(0, 10, 40, 0.8);
+            text-align: center;
+            z-index: 30;
+            min-width: 500px;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(100, 180, 255, 0.4);
+            transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        #special-item::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            bottom: -20px;
+            background: linear-gradient(45deg, #6a82fb, #fc5c7d, #6a82fb);
+            z-index: -1;
+            filter: blur(40px);
+            opacity: 0.4;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #special-item.show {
+            transform: translate(-50%, -50%) scale(1) rotateX(0deg);
+        }
+
+        #item-image {
+            width: 220px;
+            height: 220px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+            background: rgba(20, 30, 70, 0.4);
+            border-radius: 50%;
+            border: 3px solid rgba(100, 180, 255, 0.3);
+            box-shadow: 0 0 40px rgba(106, 130, 251, 0.4);
+            animation: float 5s ease-in-out infinite;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) rotateY(0deg); }
+            50% { transform: translateY(-20px) rotateY(180deg); }
+            100% { transform: translateY(0) rotateY(360deg); }
+        }
+
+        #item-text {
+            font-size: 1.8rem;
+            color: #e0f0ff;
+            max-width: 450px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-weight: 300;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        #item-title {
+            font-size: 2.8rem;
+            background: linear-gradient(to right, #6a82fb, #fc5c7d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 35px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(100, 180, 255, 0.2);
+            border: none;
+            color: #88c0f0;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.4s;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .close-btn:hover {
+            color: #fc5c7d;
+            transform: rotate(90deg) scale(1.1);
+            background: rgba(252, 92, 125, 0.3);
+            box-shadow: 0 0 25px rgba(252, 92, 125, 0.5);
+        }
+
+        #message-container {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 20;
+            font-size: 1.6rem;
+            color: #e0f0ff;
+            pointer-events: none;
+        }
+
+        .message {
+            background: linear-gradient(to right, rgba(106, 130, 251, 0.4), rgba(252, 92, 125, 0.4));
+            display: inline-block;
+            padding: 15px 30px;
+            border-radius: 35px;
+            margin: 8px;
+            animation: floatUp 5s forwards;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            box-shadow: 0 8px 20px rgba(0, 15, 40, 0.6);
+            backdrop-filter: blur(8px);
+            font-weight: 500;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            transform-style: preserve-3d;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) translateZ(0); opacity: 1; }
+            70% { transform: translateY(-80px) translateZ(20px); opacity: 1; }
+            100% { transform: translateY(-80px) translateZ(20px); opacity: 0; }
+        }
+
+        .city-count {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            z-index: 20;
+            background: rgba(10, 15, 40, 0.9);
+            padding: 20px 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            font-size: 1.4rem;
+            color: #88c0f0;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 25px rgba(0, 15, 40, 0.4);
+        }
+
+        .city-count span {
+            font-weight: 700;
+            color: #6a82fb;
+            font-size: 1.8rem;
+            margin-left: 15px;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            z-index: 25;
+            background: rgba(10, 15, 40, 0.9);
+            padding: 20px 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            font-size: 1.3rem;
+            color: #88c0f0;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 25px rgba(0, 15, 40, 0.4);
+            max-width: 400px;
+            text-align: left;
+        }
+
+        .controls i {
+            color: #fc5c7d;
+            margin-right: 15px;
+            font-size: 1.4rem;
+            width: 30px;
+            text-align: center;
+        }
+
+        .controls p {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .city-name {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            z-index: 20;
+            font-size: 2.5rem;
+            color: rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            font-weight: 900;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-shadow: 0 0 20px rgba(106, 130, 251, 0.5);
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .floating-text {
+            position: absolute;
+            font-size: 1.2rem;
+            color: rgba(160, 208, 255, 0.6);
+            z-index: 5;
+            animation: floatText 20s linear infinite;
+            text-shadow: 0 0 10px rgba(106, 130, 251, 0.3);
+            white-space: nowrap;
+        }
+
+        @keyframes floatText {
+            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) translateX(50px); opacity: 0; }
+        }
+
+        .glow {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle at center, rgba(106, 130, 251, 0.1) 0%, transparent 70%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .skyline {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(to top, rgba(10, 15, 40, 1) 0%, transparent 100%);
+            z-index: 8;
+        }
+
+        .grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(to right, rgba(100, 180, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(100, 180, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 3;
+            pointer-events: none;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <div class="particles" id="particles"></div>
+        <div class="glow"></div>
+        <div class="grid"></div>
+        <div class="skyline"></div>
+        <div id="city-container"></div>
+
+        <div id="ui-container">
+            <h1>НЕО-МЕТРОПОЛИС</h1>
+            <div class="subtitle">СОЗДАЙТЕ ГОРОД БУДУЩЕГО</div>
+            <div id="click-counter">КЛИКОВ: <span>0</span></div>
+            <div id="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            <div id="hint">КЛИКАЙТЕ В ЛЮБОМ МЕСТЕ, ЧТОБЫ ДОБАВИТЬ ЗДАНИЕ</div>
+        </div>
+
+        <div id="special-item">
+            <button class="close-btn"><i class="fas fa-times"></i></button>
+            <div id="item-title">НАЙДЕНО!</div>
+            <div id="item-image">🏆</div>
+            <div id="item-text">Вы получили уникальный артефакт для вашего города!</div>
+        </div>
+
+        <div id="message-container"></div>
+
+        <div class="city-count">ЗДАНИЙ: <span>0</span></div>
+
+        <div class="controls">
+            <p><i class="fas fa-mouse-pointer"></i> ЛКМ - добавить здание</p>
+            <p><i class="fas fa-arrows-alt"></i> ПЕРЕТАЩИТЕ - ВРАЩЕНИЕ КАМЕРЫ</p>
+            <p><i class="fas fa-sync-alt"></i> КЛИКНИТЕ 20 РАЗ ДЛЯ БОНУСА</p>
+        </div>
+
+        <div class="city-name">CYBERCITY</div>
+    </div>
+
+    <script>
+        // Конфигурация
+        const MAX_CLICKS = 20;
+        const SPECIAL_ITEMS = [
+            {
+                name: "КРИСТАЛЛ ЭНЕРГИИ",
+                text: "Источник чистой энергии для всего города",
+                symbol: "💎"
+            },
+            {
+                name: "ГОЛОГРАФИЧЕСКИЙ ПЛАНШЕТ",
+                text: "Управляйте городом с помощью передовых технологий",
+                symbol: "📱"
+            },
+            {
+                name: "АРХИВ ЗНАНИЙ",
+                text: "База данных с технологиями будущего",
+                symbol: "📚"
+            },
+            {
+                name: "КЛЮЧ ОТ НЕБОСКРЕБА",
+                text: "Откройте доступ к самым высоким зданиям",
+                symbol: "🔑"
+            },
+            {
+                name: "КАРТА МЕТРОПОЛИТЕНА",
+                text: "Схема высокоскоростного транспорта",
+                symbol: "🗺️"
+            }
+        ];
+
+        // Инициализация Three.js
+        let scene, camera, renderer;
+        let cityObjects = [];
+        let clickCount = 0;
+        let isDragging = false;
+        let previousMousePosition = {x: 0, y: 0};
+        let particleCanvas;
+
+        // Инициализация частиц
+        function initParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const text = document.createElement('div');
+                text.className = 'floating-text';
+                text.textContent = ['TECH', 'FUTURE', 'AI', 'CYBER', 'NEON', 'DIGITAL', '3D', 'VR', 'CODE', 'SYSTEM'][Math.floor(Math.random() * 10)];
+                text.style.left = `${Math.random() * 100}%`;
+                text.style.animationDuration = `${Math.random() * 20 + 15}s`;
+                text.style.animationDelay = `${Math.random() * 10}s`;
+                text.style.fontSize = `${Math.random() * 1 + 0.8}rem`;
+                container.appendChild(text);
+            }
+        }
+
+        // Инициализация сцены
+        function initCity() {
+            // Создаем сцену
+            scene = new THREE.Scene();
+            scene.background = null;
+            scene.fog = new THREE.FogExp2(0x0a0e2a, 0.015);
+
+            // Создаем камеру
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 35, 45);
+            camera.lookAt(0, 0, 0);
+
+            // Создаем рендерер
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('city-container').appendChild(renderer.domElement);
+
+            // Освещение
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            directionalLight.position.set(20, 40, 25);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -50;
+            directionalLight.shadow.camera.right = 50;
+            directionalLight.shadow.camera.top = 50;
+            directionalLight.shadow.camera.bottom = -50;
+            scene.add(directionalLight);
+
+            // Точечные огни города
+            for (let i = 0; i < 100; i++) {
+                const light = new THREE.PointLight(
+                    new THREE.Color(Math.random() * 0.5 + 0.5, Math.random() * 0.5 + 0.3, 1),
+                    0.8,
+                    30
+                );
+                light.position.set(
+                    (Math.random() - 0.5) * 150,
+                    Math.random() * 40,
+                    (Math.random() - 0.5) * 150
+                );
+                scene.add(light);
+            }
+
+            // Создаем землю
+            const groundGeometry = new THREE.PlaneGeometry(300, 300, 50, 50);
+            const groundMaterial = new THREE.MeshStandardMaterial({
+                color: 0x0a192f,
+                roughness: 0.9,
+                metalness: 0.2,
+                emissive: 0x112244,
+                emissiveIntensity: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -5;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Добавляем дороги
+            createRoads();
+
+            // Обработчики событий
+            renderer.domElement.addEventListener('click', onCityClick, false);
+            renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+            renderer.domElement.addEventListener('mouseup', onMouseUp, false);
+            renderer.domElement.addEventListener('mouseleave', onMouseUp, false);
+            window.addEventListener('resize', onWindowResize, false);
+            document.querySelector('.close-btn').addEventListener('click', closeSpecialItem);
+
+            // Добавляем несколько начальных зданий
+            for (let i = 0; i < 12; i++) {
+                addRandomBuilding();
+            }
+
+            // Начальная анимация
+            animate();
+        }
+
+        function createRoads() {
+            const roadMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2a3a5a,
+                roughness: 0.9,
+                emissive: 0x334466,
+                emissiveIntensity: 0.1
+            });
+
+            // Горизонтальные дороги
+            for (let z = -120; z <= 120; z += 40) {
+                const roadGeometry = new THREE.BoxGeometry(300, 1, 8);
+                const road = new THREE.Mesh(roadGeometry, roadMaterial);
+                road.position.set(0, -0.5, z);
+                road.receiveShadow = true;
+                scene.add(road);
+
+                // Разметка
+                const markMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x4f5f8f,
+                    emissive: 0x88aaff,
+                    emissiveIntensity: 0.3
+                });
+                for (let x = -140; x <= 140; x += 20) {
+                    const markGeometry = new THREE.BoxGeometry(8, 1.1, 1);
+                    const mark = new THREE.Mesh(markGeometry, markMaterial);
+                    mark.position.set(x, 0.1, z);
+                    mark.castShadow = true;
+                    scene.add(mark);
+                }
+            }
+
+            // Вертикальные дороги
+            for (let x = -120; x <= 120; x += 40) {
+                const roadGeometry = new THREE.BoxGeometry(8, 1, 300);
+                const road = new THREE.Mesh(roadGeometry, roadMaterial);
+                road.position.set(x, -0.5, 0);
+                road.receiveShadow = true;
+                scene.add(road);
+
+                // Разметка
+                const markMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x4f5f8f,
+                    emissive: 0x88aaff,
+                    emissiveIntensity: 0.3
+                });
+                for (let z = -140; z <= 140; z += 20) {
+                    const markGeometry = new THREE.BoxGeometry(1, 1.1, 8);
+                    const mark = new THREE.Mesh(markGeometry, markMaterial);
+                    mark.position.set(x, 0.1, z);
+                    mark.castShadow = true;
+                    scene.add(mark);
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseDown(event) {
+            isDragging = true;
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }
+
+        function onMouseMove(event) {
+            if (!isDragging) return;
+
+            const deltaX = event.clientX - previousMousePosition.x;
+            const deltaY = event.clientY - previousMousePosition.y;
+
+            camera.position.x -= deltaX * 0.02;
+            camera.position.y += deltaY * 0.02;
+
+            // Ограничиваем высоту камеры
+            camera.position.y = Math.max(20, Math.min(60, camera.position.y));
+
+            camera.lookAt(0, 0, 0);
+
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Обновляем Tween.js
+            TWEEN.update();
+
+            // Анимация объектов города
+            const time = Date.now() * 0.001;
+            cityObjects.forEach(obj => {
+                if (obj.userData.type === 'skyscraper') {
+                    obj.rotation.y += 0.001;
+                }
+                if (obj.userData.type === 'helix') {
+                    obj.rotation.y += 0.008;
+                }
+                if (obj.userData.type === 'sphere') {
+                    obj.position.y = Math.sin(time + obj.userData.offset) * 2;
+                }
+            });
+
+            // Плавное возвращение камеры к центру
+            if (!isDragging) {
+                camera.position.x += (0 - camera.position.x) * 0.03;
+                camera.position.y += (35 - camera.position.y) * 0.03;
+                camera.lookAt(0, 0, 0);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onCityClick(event) {
+            // Обновляем счетчик
+            clickCount++;
+            document.querySelector('#click-counter span').textContent = clickCount;
+            document.getElementById('progress-bar').style.width = `${Math.min(clickCount / MAX_CLICKS * 100, 100)}%`;
+
+            // Показываем сообщение
+            showMessage(getRandomMessage());
+
+            // Создаем новый объект
+            addRandomBuilding();
+
+            // Проверяем, не пора ли показать специальный предмет
+            if (clickCount === MAX_CLICKS) {
+                showSpecialItem();
+            }
+        }
+
+        function addRandomBuilding() {
+            // Случайное место на земле
+            const x = (Math.random() - 0.5) * 250;
+            const z = (Math.random() - 0.5) * 250;
+            const y = 0;
+
+            // Случайный тип объекта
+            const types = ['skyscraper', 'tower', 'helix', 'pyramid', 'arcology', 'sphere'];
+            const type = types[Math.floor(Math.random() * types.length)];
+
+            let building;
+            switch (type) {
+                case 'skyscraper':
+                    building = createSkyscraper();
+                    break;
+                case 'tower':
+                    building = createTower();
+                    break;
+                case 'helix':
+                    building = createHelixBuilding();
+                    break;
+                case 'pyramid':
+                    building = createPyramid();
+                    break;
+                case 'arcology':
+                    building = createArcology();
+                    break;
+                case 'sphere':
+                    building = createSphereBuilding();
+                    break;
+                default:
+                    building = createSkyscraper();
+            }
+
+            building.position.set(x, 0, z);
+            scene.add(building);
+            cityObjects.push(building);
+
+            // Обновляем счетчик объектов
+            document.querySelector('.city-count span').textContent = cityObjects.length;
+
+            // Анимация появления
+            building.scale.set(0.1, 0.1, 0.1);
+            building.position.y = -10;
+
+            new TWEEN.Tween(building.scale)
+                .to({ x: 1, y: 1, z: 1 }, 1500)
+                .easing(TWEEN.Easing.Elastic.Out)
+                .start();
+
+            new TWEEN.Tween(building.position)
+                .to({ y: 0 }, 1200)
+                .easing(TWEEN.Easing.Bounce.Out)
+                .start();
+        }
+
+        function createSkyscraper() {
+            const group = new THREE.Group();
+            group.userData = { type: 'skyscraper' };
+
+            const height = Math.random() * 40 + 30;
+            const width = Math.random() * 8 + 8;
+            const depth = Math.random() * 8 + 8;
+
+            // Основная башня
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(Math.random() * 0.3 + 0.3, Math.random() * 0.3 + 0.4, Math.random() * 0.3 + 0.7),
+                metalness: 0.8,
+                roughness: 0.15,
+                emissive: new THREE.Color(Math.random() * 0.1, Math.random() * 0.2, Math.random() * 0.3),
+                emissiveIntensity: 0.2
+            });
+            const tower = new THREE.Mesh(geometry, material);
+            tower.position.y = height / 2;
+            tower.castShadow = true;
+            tower.receiveShadow = true;
+            group.add(tower);
+
+            // Окна
+            const windowMaterial = new THREE.MeshStandardMaterial({
+                color: 0x88ccff,
+                emissive: 0xaaddff,
+                emissiveIntensity: 0.7
+            });
+
+            const windowCount = Math.floor(height / 4);
+            for (let i = 0; i < windowCount; i++) {
+                for (let side = 0; side < 4; side++) {
+                    const windowGeometry = new THREE.BoxGeometry(width * 0.8, 1.5, 0.2);
+                    const window = new THREE.Mesh(windowGeometry, windowMaterial);
+
+                    const angle = (Math.PI / 2) * side;
+                    window.position.set(
+                        Math.cos(angle) * (depth / 2 + 0.11),
+                        (i * 4) - (height / 2) + 4,
+                        Math.sin(angle) * (width / 2 + 0.11)
+                    );
+                    window.rotation.y = angle;
+                    group.add(window);
+                }
+            }
+
+            // Верхушка
+            const spireGeometry = new THREE.ConeGeometry(width * 0.6, height * 0.2, 4);
+            const spireMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.4,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const spire = new THREE.Mesh(spireGeometry, spireMaterial);
+            spire.position.y = height + height * 0.1;
+            spire.rotation.y = Math.PI / 4;
+            group.add(spire);
+
+            return group;
+        }
+
+        function createTower() {
+            const group = new THREE.Group();
+            group.userData = { type: 'tower' };
+
+            const height = Math.random() * 50 + 40;
+            const radius = Math.random() * 5 + 6;
+
+            // Основная башня
+            const geometry = new THREE.CylinderGeometry(radius, radius * 1.2, height, 16);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(Math.random() * 0.5 + 0.2, Math.random() * 0.3 + 0.3, Math.random() * 0.3 + 0.4),
+                metalness: 0.8,
+                roughness: 0.2,
+                wireframe: true
+            });
+            const tower = new THREE.Mesh(geometry, material);
+            tower.position.y = height / 2;
+            tower.castShadow = true;
+            tower.receiveShadow = true;
+            group.add(tower);
+
+            // Шпиль
+            const spireHeight = Math.random() * 20 + 15;
+            const spireGeometry = new THREE.ConeGeometry(2, spireHeight, 8);
+            const spireMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.5
+            });
+            const spire = new THREE.Mesh(spireGeometry, spireMaterial);
+            spire.position.y = height + spireHeight / 2;
+            group.add(spire);
+
+            // Кольца
+            const ringMaterial = new THREE.MeshStandardMaterial({
+                color: 0x5599cc,
+                emissive: 0x88ccff,
+                emissiveIntensity: 0.6
+            });
+
+            for (let i = 0; i < 5; i++) {
+                const ringGeometry = new THREE.TorusGeometry(radius * 1.5, 0.8, 16, 32);
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.position.y = (i * 15) + 10;
+                ring.rotation.x = Math.PI / 2;
+                group.add(ring);
+            }
+
+            return group;
+        }
+
+        function createHelixBuilding() {
+            const group = new THREE.Group();
+            group.userData = { type: 'helix' };
+
+            const height = Math.random() * 40 + 30;
+            const radius = Math.random() * 8 + 10;
+
+            // Центральная колонна
+            const columnGeometry = new THREE.CylinderGeometry(3, 3, height, 16);
+            const columnMaterial = new THREE.MeshStandardMaterial({
+                color: 0x334455,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const column = new THREE.Mesh(columnGeometry, columnMaterial);
+            column.position.y = height / 2;
+            group.add(column);
+
+            // Спиральные платформы
+            const platformMaterial = new THREE.MeshStandardMaterial({
+                color: 0x5599cc,
+                metalness: 0.8,
+                roughness: 0.15
+            });
+
+            const platformCount = 20;
+            for (let i = 0; i < platformCount; i++) {
+                const angle = (i / platformCount) * Math.PI * 6;
+                const y = (i / platformCount) * height;
+
+                const platformGeometry = new THREE.BoxGeometry(radius * 2, 0.8, 5);
+                const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+                platform.position.set(
+                    Math.cos(angle) * radius,
+                    y,
+                    Math.sin(angle) * radius
+                );
+                platform.rotation.y = angle + Math.PI / 2;
+                group.add(platform);
+
+                // Опора
+                const supportGeometry = new THREE.CylinderGeometry(0.5, 0.5, y, 8);
+                const supportMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x4477aa
+                });
+                const support = new THREE.Mesh(supportGeometry, supportMaterial);
+                support.position.set(
+                    Math.cos(angle) * radius,
+                    y / 2,
+                    Math.sin(angle) * radius
+                );
+                support.rotation.x = Math.PI / 2;
+                support.rotation.z = angle;
+                group.add(support);
+            }
+
+            return group;
+        }
+
+        function createPyramid() {
+            const group = new THREE.Group();
+            group.userData = { type: 'pyramid' };
+
+            const size = Math.random() * 15 + 20;
+            const height = Math.random() * 25 + 20;
+
+            // Пирамида
+            const geometry = new THREE.ConeGeometry(size, height, 4);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(Math.random() * 0.4 + 0.5, Math.random() * 0.3 + 0.4, Math.random() * 0.3 + 0.3),
+                metalness: 0.6,
+                roughness: 0.3
+            });
+            const pyramid = new THREE.Mesh(geometry, material);
+            pyramid.position.y = height / 2;
+            pyramid.rotation.y = Math.PI / 4;
+            pyramid.castShadow = true;
+            pyramid.receiveShadow = true;
+            group.add(pyramid);
+
+            // Окна
+            const windowMaterial = new THREE.MeshStandardMaterial({
+                color: 0x88ccff,
+                emissive: 0x88ccff,
+                emissiveIntensity: 0.5
+            });
+
+            for (let i = 0; i < 4; i++) {
+                const windowGeometry = new THREE.BoxGeometry(size / 4, size / 4, 0.2);
+                const window = new THREE.Mesh(windowGeometry, windowMaterial);
+                window.position.set(0, height / 3, size / 2);
+                window.rotation.y = (Math.PI / 2) * i;
+                group.add(window);
+            }
+
+            // Луч света
+            const lightGeometry = new THREE.CylinderGeometry(1, 5, height * 2, 8);
+            const lightMaterial = new THREE.MeshBasicMaterial({
+                color: 0x88ccff,
+                transparent: true,
+                opacity: 0.3
+            });
+            const light = new THREE.Mesh(lightGeometry, lightMaterial);
+            light.position.y = height + height;
+            light.rotation.x = Math.PI / 2;
+            group.add(light);
+
+            return group;
+        }
+
+        function createArcology() {
+            const group = new THREE.Group();
+            group.userData = { type: 'arcology' };
+
+            const radius = Math.random() * 15 + 20;
+            const height = Math.random() * 40 + 30;
+
+            // Основная структура
+            const geometry = new THREE.CylinderGeometry(radius, radius * 1.3, height, 8, 1, true);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(Math.random() * 0.3 + 0.4, Math.random() * 0.5 + 0.3, Math.random() * 0.3 + 0.3),
+                wireframe: false,
+                transparent: true,
+                opacity: 0.8,
+                metalness: 0.7,
+                roughness: 0.2
+            });
+            const structure = new THREE.Mesh(geometry, material);
+            structure.position.y = height / 2;
+            structure.castShadow = true;
+            group.add(structure);
+
+            // Внутренние мосты
+            const bridgeMaterial = new THREE.MeshStandardMaterial({
+                color: 0x5599aa,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+
+            for (let i = 0; i < 6; i++) {
+                const bridgeGeometry = new THREE.BoxGeometry(radius * 1.8, 1, 2);
+                const bridge = new THREE.Mesh(bridgeGeometry, bridgeMaterial);
+                bridge.position.y = (i * 8) + 10;
+                bridge.rotation.y = (Math.PI / 3) * i;
+                group.add(bridge);
+            }
+
+            return group;
+        }
+
+        function createSphereBuilding() {
+            const group = new THREE.Group();
+            group.userData = { type: 'sphere', offset: Math.random() * Math.PI * 2 };
+
+            const radius = Math.random() * 8 + 12;
+
+            // Основная сфера
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(Math.random() * 0.5 + 0.2, Math.random() * 0.4 + 0.3, Math.random() * 0.5 + 0.4),
+                metalness: 0.8,
+                roughness: 0.15,
+                wireframe: false
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.y = radius;
+            sphere.castShadow = true;
+            group.add(sphere);
+
+            // Опоры
+            const supportMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4477aa
+            });
+
+            for (let i = 0; i < 4; i++) {
+                const supportGeometry = new THREE.CylinderGeometry(1, 1, radius * 1.5, 8);
+                const support = new THREE.Mesh(supportGeometry, supportMaterial);
+                support.position.set(
+                    Math.cos(Math.PI / 2 * i) * radius * 0.7,
+                    radius * 0.75,
+                    Math.sin(Math.PI / 2 * i) * radius * 0.7
+                );
+                support.rotation.z = Math.PI / 2;
+                support.rotation.y = -Math.PI / 2 * i;
+                group.add(support);
+            }
+
+            return group;
+        }
+
+        function showSpecialItem() {
+            // Выбираем случайный предмет
+            const item = SPECIAL_ITEMS[Math.floor(Math.random() * SPECIAL_ITEMS.length)];
+
+            // Обновляем содержимое
+            document.getElementById('item-title').textContent = item.name;
+            document.getElementById('item-text').textContent = item.text;
+            document.getElementById('item-image').textContent = item.symbol;
+
+            // Показываем предмет
+            const specialItem = document.getElementById('special-item');
+            specialItem.classList.add('show');
+        }
+
+        function closeSpecialItem() {
+            const specialItem = document.getElementById('special-item');
+            specialItem.classList.remove('show');
+
+            // Сбрасываем счетчик
+            clickCount = 0;
+            document.querySelector('#click-counter span').textContent = clickCount;
+            document.getElementById('progress-bar').style.width = '0%';
+            showMessage("ГОТОВЫ К НОВЫМ ДОСТИЖЕНИЯМ!");
+        }
+
+        function showMessage(text) {
+            const messageContainer = document.getElementById('message-container');
+            const message = document.createElement('div');
+            message.className = 'message';
+            message.textContent = text;
+            messageContainer.appendChild(message);
+
+            // Удаляем сообщение после анимации
+            setTimeout(() => {
+                message.remove();
+            }, 4000);
+        }
+
+        function getRandomMessage() {
+            const messages = [
+                "НОВЫЙ НЕБОСКРЕБ ПОСТРОЕН!",
+                "АРХИТЕКТУРНЫЙ ШЕДЕВР ДОБАВЛЕН!",
+                "ГОРОД РАСТЕТ ВВЫСЬ!",
+                "ФУТУРИСТИЧЕСКОЕ ЗДАНИЕ ВОЗВЕДЕНО!",
+                "ИНФРАСТРУКТУРА УЛУЧШАЕТСЯ!",
+                "ВАШ МЕГАПОЛИС РАЗВИВАЕТСЯ!",
+                "УДИВИТЕЛЬНОЕ ДОПОЛНЕНИЕ К ГОРИЗОНТУ!",
+                "ТЕХНОЛОГИЧЕСКОЕ ЧУДО ПОСТРОЕНО!",
+                "ГОРОД БУДУЩЕГО СТАНОВИТСЯ РЕАЛЬНОСТЬЮ!",
+                "ПОТРЯСАЮЩАЯ АРХИТЕКТУРА!"
+                "ПОТРЯСАЮЩАЯ АРХИТЕКТУРА!"
+            ];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        // Инициализация при загрузке
+        window.onload = function() {
+            initParticles();
+            initCity();
+        };
+    </script>
+</body>
+</html>
